@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workshop API: Plant, Line & SKU Table</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+      body { background-color: #f8f9fa; font-family: 'Prompt', sans-serif; }
+      .custom-card { margin-top: 50px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: none; border-radius: 12px; }
+      .card-header-custom { background-color: #ffffff; border-bottom: 1px solid #eee; padding: 25px; border-radius: 12px 12px 0 0 !important; }
+      .card-title-custom { color: #2c3e50; font-weight: 700; margin: 0; }
+      .form-label-custom { font-weight: 600; color: #5a6268; }
+      .form-control, .form-select { border-radius: 8px; padding: 10px 15px; border: 1px solid #ced4da; }
+      .table-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 50px; }
+      .table thead { background-color: #f8f9fa; }
+      .result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-size: 0.9rem; display: none; text-align: center; border: 1px solid #0d6efd; color: #0d6efd; background-color: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+          
+          <!-- ส่วนของฟอร์มเลือกข้อมูล -->
+          <div class="card custom-card">
+            <div class="card-header-custom text-center">
+              <h2 class="card-title-custom">Plant & Line Selection</h2>
+              <p class="text-muted mb-0 small">เลือกข้อมูลเพื่อดูรายชื่อ SKU ในตาราง</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+              <form id="apiForm">
+                
+                <div class="row">
+                  <div class="col-md-6 mb-4">
+                    <label for="client_id" class="form-label form-label-custom">Client_id</label>
+                    <input type="number" class="form-control" id="client_id" placeholder="ระบุ Client ID (1-20)" required min="1" max="20">
+                  </div>
+                  <div class="col-md-6 mb-4">
+                    <label for="plant_code" class="form-label form-label-custom">plant_code</label>
+                    <div class="input-group">
+                      <select class="form-select" id="plant_code" required>
+                        <option value="" selected disabled>-- เลือก Plant Code --</option>
+                      </select>
+                      <button class="btn btn-primary px-3" type="button" id="btnSearch">Search</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-4">
+                    <label for="plant_name" class="form-label form-label-custom">Plant_name</label>
+                    <input type="text" class="form-control bg-light" id="plant_name" placeholder="ชื่อโรงงาน..." readonly>
+                  </div>
+                  <div class="col-md-6 mb-4">
+                    <label for="line_id" class="form-label form-label-custom">line_id</label>
+                    <select class="form-select" id="line_id" required disabled>
+                      <option value="" selected disabled>-- เลือก Line ID --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="d-grid mt-2">
+                    <button type="submit" id="submitBtn" class="btn btn-success btn-lg">Send to Server</button>
+                </div>
+
+              </form>
+              <div id="resultBox" class="result"></div>
+            </div>
+          </div>
+
+          <!-- ส่วนของตารางแสดงข้อมูล SKU -->
+          <div class="table-container">
+            <h5 class="mb-4 fw-bold text-secondary">รายชื่อ SKU ที่พบ</h5>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle" id="skuTable">
+                <thead>
+                  <tr>
+                    <th style="width: 120px;">SKU ID</th>
+                    <th>รายละเอียดสินค้า (Description & Package)</th>
+                  </tr>
+                </thead>
+                <tbody id="skuBody">
+                  <tr>
+                    <td colspan="2" class="text-center text-muted py-4">กรุณาเลือก Plant และ Line เพื่อดูข้อมูล</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // --- การกำหนดค่า (Settings) ---
+        const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
+        const WORKSHOP_NAME = "4";
+        
+        const FETCH_OPTIONS = {
+            method: 'GET',
+            headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'CustomAgent/1.0'
+            }
+        };
+
+        const plantSelect = document.getElementById('plant_code');
+        const lineSelect = document.getElementById('line_id');
+        const plantNameInput = document.getElementById('plant_name');
+        const searchBtn = document.getElementById('btnSearch');
+        const skuBody = document.getElementById('skuBody');
+        const statusMsg = document.querySelector('.card-title-custom'); // ยืมมาใช้แสดงสถานะชั่วคราว
+
+        // 1. โหลดข้อมูล Plant ทั้งหมด
+        async function loadPlants() {
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_all_plants.php`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success && data.plants) {
+                    plantSelect.innerHTML = '<option value="" selected disabled>-- เลือก Plant Code --</option>';
+                    data.plants.forEach(plant => {
+                        const opt = document.createElement('option');
+                        opt.value = plant.plant_code;
+                        opt.innerText = plant.plant_code;
+                        plantSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) { console.error("Plants fail", err); }
+        }
+
+        // 2. โหลดข้อมูล Line เมื่อเลือก Plant
+        async function loadLines(plantCode) {
+            lineSelect.disabled = true;
+            lineSelect.innerHTML = '<option value="" selected disabled>Loading lines...</option>';
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_line_id.php?plant_code=${plantCode}`, FETCH_OPTIONS);
+                const data = await res.json();
+                lineSelect.innerHTML = '<option value="" selected disabled>-- เลือก Line ID --</option>';
+                if (data.success && data.lines) {
+                    data.lines.forEach(line => {
+                        const opt = document.createElement('option');
+                        opt.value = line.line_id; opt.innerText = line.line_id;
+                        lineSelect.appendChild(opt);
+                    });
+                    lineSelect.disabled = false;
+                }
+            } catch (err) { console.error("Lines fail", err); }
+        }
+
+        // 3. โหลดข้อมูล SKU และแสดงในตาราง
+        async function loadSKUs() {
+            const plantCode = plantSelect.value;
+            const lineId = lineSelect.value;
+            if (!plantCode || !lineId) return;
+
+            skuBody.innerHTML = '<tr><td colspan="3" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> กำลังโหลดข้อมูล SKU...</td></tr>';
+
+            try {
+                // 📍 เรียก API get_sku.php
+                const res = await fetch(`${SERVER_URL}/API/get_sku.php?plant_code=${plantCode}&line_id=${lineId}`, FETCH_OPTIONS);
+                const data = await res.json();
+
+                skuBody.innerHTML = ''; // ล้างตาราง
+                if (data.success && data.skus && data.skus.length > 0) {
+                    data.skus.forEach(sku => {
+                        // 📍 ปรับตามก้อนข้อมูลจริงที่ส่งมา
+                        const row = `<tr>
+                            <td><span class="badge bg-secondary">${sku.id}</span></td>
+                            <td>
+                                <div class="fw-bold text-dark">${sku.material_desc1 || '-'}</div>
+                                <small class="text-muted">${sku.pack_size || 0}ml x ${sku.pack_qty || 0}</small>
+                            </td>
+                        </tr>`;
+                        skuBody.insertAdjacentHTML('beforeend', row);
+                    });
+
+                    // 🚀 Notify Dashboard เมื่อโหลด SKU สำเร็จ
+                    const clientId = document.getElementById('client_id').value || "0";
+                    const logParams = new URLSearchParams({
+                        client_id: clientId,
+                        ws: WORKSHOP_NAME,
+                        data: `Found SKU for Line ${lineId}`
+                    });
+                    fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS);
+
+                } else {
+                    skuBody.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-4">❌ ไม่พบข้อมูล SKU สำหรับไลน์นี้</td></tr>';
+                }
+            } catch (err) {
+                console.error("SKU fail", err);
+                skuBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4">⚠️ เกิดข้อผิดพลาดในการเชื่อมต่อ</td></tr>';
+            }
+        }
+
+        // 4. ฟังก์ชันค้นหาโรงงาน
+        async function searchPlant() {
+            const val = plantSelect.value;
+            if (!val) return;
+            plantNameInput.value = 'Searching...';
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_plant.php?plant_code=${val}`, FETCH_OPTIONS);
+                const data = await res.json();
+                
+                if (data.success) {
+                    plantNameInput.value = '📍 ' + data.plant_desc_th;
+
+                    // 🚀 Notify Dashboard
+                    const clientId = document.getElementById('client_id').value || "0";
+                    const logParams = new URLSearchParams({
+                        client_id: clientId,
+                        ws: "4",
+                        data: `Found Plant ${val}`
+                    });
+                    fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS);
+                } else {
+                    plantNameInput.value = '❌ Not found';
+                }
+            } catch (err) { plantNameInput.value = ''; }
+            loadLines(val);
+            skuBody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-4">กรุณาเลือก Line ID ต่อเพื่อดูข้อมูล SKU</td></tr>';
+        }
+
+        // Events
+        document.addEventListener('DOMContentLoaded', loadPlants);
+        plantSelect.addEventListener('change', searchPlant);
+        lineSelect.addEventListener('change', loadSKUs); // เมื่อเลือกไลน์ ให้โหลด SKU ทันที
+
+        // Submit Form
+        document.getElementById('apiForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const resBox = document.getElementById('resultBox');
+            const plantName = plantNameInput.value.replace('📍 ', '').replace('❌ ', '').replace('Searching...', '');
+            const lineId = lineSelect.value;
+
+            if (!plantName || !lineId) return alert('กรุณาเลือกข้อมูลให้ครบ');
+
+            btn.disabled = true; btn.innerText = 'Sending...';
+            const p = new URLSearchParams({
+                client_id: document.getElementById('client_id').value,
+                ws: WORKSHOP_NAME,
+                data: `Request SKU List for ${plantName} (Line: ${lineId})`
+            });
+
+            try {
+                const response = await fetch(`${SERVER_URL}/API/api.php?${p.toString()}`, FETCH_OPTIONS);
+                const result = await response.json();
+                resBox.style.display = 'block';
+                resBox.innerText = result.reply || 'Success!';
+            } catch (err) {
+                resBox.style.display = 'block'; resBox.innerText = 'Error: Connection failed';
+            } finally {
+                btn.disabled = false; btn.innerText = 'Send to Server';
+            }
+        });
+    </script>
+</body>
+</html>

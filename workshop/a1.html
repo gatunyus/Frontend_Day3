@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workshop Client - Plant Lookup</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+      body {
+        background-color: #f8f9fa;
+        font-family: 'Prompt', sans-serif;
+      }
+      .custom-card {
+        margin-top: 50px;
+        margin-bottom: 50px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border: none;
+        border-radius: 16px;
+      }
+      .card-header-custom {
+        background-color: #ffffff;
+        border-bottom: 2px solid #e9ecef;
+        padding: 25px;
+        border-radius: 16px 16px 0 0;
+      }
+      .card-title-custom {
+        color: #343a40;
+        font-weight: 700;
+        margin: 0;
+      }
+      .form-label-custom {
+        font-weight: 600;
+        color: #495057;
+      }
+      .form-control-custom:focus {
+        border-color: #5c6bc0;
+        box-shadow: 0 0 0 0.25rem rgba(92, 107, 192, 0.25);
+      }
+      .result {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        display: none;
+        text-align: center;
+        border: 1px solid #0d6efd;
+        color: #0d6efd;
+        background-color: #f0f7ff;
+      }
+      .btn-primary {
+        background-color: #5c6bc0;
+        border-color: #5c6bc0;
+      }
+      .btn-primary:hover {
+        background-color: #4a59b0;
+        border-color: #4a59b0;
+      }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="card custom-card">
+            
+            <div class="card-header-custom">
+              <h2 class="card-title-custom text-center">API Workshop: Plant Lookup</h2>
+              <p class="text-center text-muted small mt-2">เชื่อมต่อไปยังเครื่อง Server (ngrok)</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+              <form id="apiForm">
+                
+                <!-- Client_id row -->
+                <div class="mb-3 row align-items-center">
+                  <label for="client_id" class="col-sm-3 col-form-label form-label-custom">Client_id</label>
+                  <div class="col-sm-9">
+                    <input type="number" class="form-control form-control-custom" id="client_id" placeholder="1-20" required min="1" max="20">
+                  </div>
+                </div>
+
+                <!-- plant_code row with Search Button -->
+                <div class="mb-3 row align-items-center">
+                  <label for="plant_code" class="col-sm-3 col-form-label form-label-custom">plant_code</label>
+                  <div class="col-sm-9">
+                    <div class="input-group">
+                      <input type="text" class="form-control form-control-custom" id="plant_code" placeholder="ใส่ 4 หลัก" required maxlength="4">
+                      <button class="btn btn-outline-primary" type="button" id="button-search">ค้นหา</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Plant_name row -->
+                <div class="mb-4 row align-items-center">
+                  <label for="plant_name" class="col-sm-3 col-form-label form-label-custom">Plant_name</label>
+                  <div class="col-sm-9">
+                    <input type="text" class="form-control form-control-custom" id="plant_name" placeholder="ชื่อโรงงานจะขึ้นที่นี่..." readonly>
+                  </div>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" id="submitBtn" class="btn btn-primary btn-lg">Send to Server</button>
+                </div>
+
+              </form>
+
+              <div id="resultBox" class="result"></div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+        // --- การกำหนดค่า (Settings) ---
+        const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
+        const WORKSHOP_NAME = "1"; // กำหนดชื่อ Workshop ที่นี่
+
+        const plantInput = document.getElementById('plant_code');
+        const plantDesc = document.getElementById('plant_name');
+        const searchBtn = document.getElementById('button-search');
+
+        // 📍 รวมค่า Header ไว้ที่เดียวเพื่อความง่าย
+        const FETCH_OPTIONS = {
+            method: 'GET',
+            headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'CustomAgent/1.0'
+            }
+        };
+
+        async function searchPlant() {
+            const val = plantInput.value;
+            if (val.length === 4) {
+                plantDesc.value = 'Searching...';
+                try {
+                    const res = await fetch(`${SERVER_URL}/API/get_plant.php?plant_code=${val}`, FETCH_OPTIONS);
+                    const data = await res.json();
+
+                    if (data.success) {
+                        plantDesc.value = '📍 ' + data.plant_desc_th;
+
+                        // 🚀 Feature Lab1: เมื่อค้นหาเจอ ให้ส่งข้อมูลไปแจ้ง Dashboard ทันที
+                        const clientId = document.getElementById('client_id').value || "0";
+                        const logParams = new URLSearchParams({
+                            client_id: clientId,
+                            ws: WORKSHOP_NAME,
+                            data: `Found Plant ${val}`
+                        });
+                        fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS)
+                            .then(r => r.json())
+                            .then(log => console.log("Dashboard notified:", log))
+                            .catch(e => console.error("Dashboard notify failed", e));
+
+                    } else {
+                        plantDesc.value = '❌ Not found';
+                    }
+                } catch (err) { 
+                    console.error(err);
+                    plantDesc.value = ''; 
+                }
+            } else { 
+                plantDesc.value = ''; 
+            }
+        }
+
+        plantInput.addEventListener('input', searchPlant);
+        searchBtn.addEventListener('click', searchPlant);
+
+        // ส่งข้อมูลไปยังเครื่อง Server
+        document.getElementById('apiForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const resBox = document.getElementById('resultBox');
+            
+            // ตรวจสอบว่ามีข้อมูลโรงงานหรือยัง
+            const plantName = plantDesc.value.replace('📍 ', '').replace('❌ ', '').replace('Searching...', '');
+            if (!plantName) {
+                alert('กรุณาค้นหาโรงงานให้ถูกต้องก่อนส่งข้อมูล');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            // เตรียมข้อมูลสำหรับส่ง (เอา ngrok-skip-browser-warning ออกจากตรงนี้)
+            const p = new URLSearchParams({
+                client_id: document.getElementById('client_id').value,
+                ws: WORKSHOP_NAME,
+                data: "Recive " + plantName
+            });
+
+            try {
+                // 📍 จุดที่ 2: แก้ไข fetch ในการ Submit ฟอร์ม
+                const response = await fetch(`${SERVER_URL}/API/api.php?${p.toString()}`, {
+                    method: 'GET',
+                    headers: {
+                        'ngrok-skip-browser-warning': '69420',
+                        'User-Agent': 'CustomAgent/1.0'
+                    }
+                });
+                
+                const result = await response.json();
+                resBox.style.display = 'block';
+                resBox.innerText = result.reply || 'Success!';
+            } catch (err) {
+                console.error(err);
+                resBox.style.display = 'block';
+                resBox.innerText = 'Error: Connection failed';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send to Server';
+            }
+        });
+    </script>
+</body>
+</html>

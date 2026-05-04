@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workshop API: Plant Dropdown</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+      body { background-color: #f8f9fa; font-family: 'Prompt', sans-serif; }
+      .custom-card { margin-top: 50px; margin-bottom: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: none; border-radius: 12px; }
+      .card-header-custom { background-color: #ffffff; border-bottom: 1px solid #eee; padding: 25px; border-radius: 12px 12px 0 0 !important; }
+      .card-title-custom { color: #2c3e50; font-weight: 700; margin: 0; }
+      .form-label-custom { font-weight: 600; color: #5a6268; }
+      .form-control, .form-select { border-radius: 8px; padding: 10px 15px; border: 1px solid #ced4da; }
+      .form-control:focus, .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15); }
+      .result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-size: 0.9rem; display: none; text-align: center; border: 1px solid #0d6efd; color: #0d6efd; background-color: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="card custom-card">
+            
+            <div class="card-header-custom text-center">
+              <h2 class="card-title-custom">Plant Search (Dropdown)</h2>
+              <p class="text-muted mb-0 small">เรียกใช้งานข้อมูลผ่าน API</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+              <form id="apiForm">
+                
+                <!-- Client_id row -->
+                <div class="mb-4 row align-items-center">
+                  <label for="client_id" class="col-sm-4 col-form-label form-label-custom">Client_id</label>
+                  <div class="col-sm-8">
+                    <input type="number" class="form-control" id="client_id" placeholder="ระบุ Client ID (1-20)" required min="1" max="20">
+                  </div>
+                </div>
+
+                <!-- plant_code row (Dropdown) -->
+                <div class="mb-4 row align-items-center">
+                  <label for="plant_code" class="col-sm-4 col-form-label form-label-custom">plant_code</label>
+                  <div class="col-sm-8">
+                    <div class="input-group">
+                      <select class="form-select" id="plant_code" required>
+                        <option value="" selected disabled>-- เลือก Plant Code --</option>
+                      </select>
+                      <button class="btn btn-primary px-4" type="button" id="btnSearch">Search</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Plant_name row -->
+                <div class="mb-4 row align-items-center">
+                  <label for="plant_name" class="col-sm-4 col-form-label form-label-custom">Plant_name</label>
+                  <div class="col-sm-8">
+                    <input type="text" class="form-control bg-light" id="plant_name" placeholder="ชื่อโรงงานจะขึ้นที่นี่..." readonly>
+                  </div>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" id="submitBtn" class="btn btn-success btn-lg">Send to Server</button>
+                </div>
+
+              </form>
+
+              <div id="resultBox" class="result"></div>
+            </div>
+            
+            <div class="card-footer text-center py-3 bg-white border-0">
+                <small class="text-muted d-block" id="statusMessage">Ready for API Connection</small>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // --- การกำหนดค่า (Settings) ---
+        const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
+        const WORKSHOP_NAME = "2"; // กำหนดชื่อ Workshop ที่นี่
+        
+        const FETCH_OPTIONS = {
+            method: 'GET',
+            headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'CustomAgent/1.0'
+            }
+        };
+
+        const plantSelect = document.getElementById('plant_code');
+        const plantNameInput = document.getElementById('plant_name');
+        const searchBtn = document.getElementById('btnSearch');
+        const statusMsg = document.getElementById('statusMessage');
+
+        // 1. โหลดข้อมูล Plant ทั้งหมดมาใส่ใน Dropdown เมื่อเปิดหน้าเว็บ
+        async function loadPlants() {
+            statusMsg.innerText = "Loading plants list...";
+            try {
+                // 📍 แก้ไขบรรทัดนี้ ให้ใช้ FETCH_OPTIONS เหมือนฟังก์ชันอื่น
+                const res = await fetch(`${SERVER_URL}/API/get_all_plants.php`, FETCH_OPTIONS);
+                
+                const data = await res.json();
+                
+                if (data.success && data.plants) {
+                    // ล้างรายการเดิมก่อน (ยกเว้นตัวเลือกแรก)
+                    plantSelect.innerHTML = '<option value="" selected disabled>-- เลือก Plant Code --</option>';
+                    data.plants.forEach(plant => {
+                        const opt = document.createElement('option');
+                        opt.value = plant.plant_code;
+                        opt.innerText = plant.plant_code;
+                        plantSelect.appendChild(opt);
+                    });
+                    statusMsg.innerText = "Plants loaded successfully";
+                } else {
+                    statusMsg.innerText = "Using manual fallback (Data error)";
+                    addSampleOptions();
+                }
+            } catch (err) {
+                console.warn("API loading failed, using fallback:", err);
+                statusMsg.innerText = "Using manual fallback (Connection failed)";
+                addSampleOptions();
+            }
+        }
+
+        function addSampleOptions() {
+            // ข้อมูลตัวอย่างสำหรับกรณีโหลดจาก API ไม่สำเร็จ
+            const samples = [
+                {id: "1121", name: "Plant 1121"},
+                {id: "1010", name: "Plant 1300"},
+                {id: "2020", name: "Plant 1400"}
+            ];
+            samples.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = s.id;
+                plantSelect.appendChild(opt);
+            });
+        }
+
+        // 2. ค้นหาชื่อโรงงานตามที่เลือกใน Dropdown
+        async function searchPlant() {
+            const val = plantSelect.value;
+            if (!val) return;
+            
+            plantNameInput.value = 'Searching...';
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_plant.php?plant_code=${val}`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success) {
+                    plantNameInput.value = '📍 ' + data.plant_desc_th;
+
+                    // 🚀 Feature Lab: แจ้งเตือน Dashboard ทันทีที่ค้นหาเจอ
+                    const clientId = document.getElementById('client_id').value || "0";
+                    const logParams = new URLSearchParams({
+                        client_id: clientId,
+                        ws: "2",
+                        data: `Found Plant ${val}`
+                    });
+                    fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS);
+                } else {
+                    plantNameInput.value = '❌ Not found';
+                }
+            } catch (err) { 
+                console.error(err);
+                plantNameInput.value = ''; 
+            }
+        }
+
+        // เรียกใช้ฟังก์ชันโหลดข้อมูลเมื่อหน้าจอพร้อม
+        document.addEventListener('DOMContentLoaded', loadPlants);
+        
+        // ผูกเหตุการณ์การเลือกและกดปุ่ม
+        plantSelect.addEventListener('change', searchPlant);
+        searchBtn.addEventListener('click', searchPlant);
+
+        // 3. ส่งข้อมูลไปยังเครื่อง Server
+        document.getElementById('apiForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const resBox = document.getElementById('resultBox');
+            
+            const plantName = plantNameInput.value.replace('📍 ', '').replace('❌ ', '').replace('Searching...', '');
+            if (!plantName) {
+                alert('กรุณาเลือกโรงงานให้ถูกต้องก่อนส่งข้อมูล');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Sending...';
+
+            const p = new URLSearchParams({
+                client_id: document.getElementById('client_id').value,
+                ws: WORKSHOP_NAME,
+                data: "Recive " + plantName
+            });
+
+            try {
+                const response = await fetch(`${SERVER_URL}/API/api.php?${p.toString()}`, FETCH_OPTIONS);
+                const result = await response.json();
+                resBox.style.display = 'block';
+                resBox.innerText = result.reply || 'Success!';
+            } catch (err) {
+                console.error(err);
+                resBox.style.display = 'block';
+                resBox.innerText = 'Error: Connection failed';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send to Server';
+            }
+        });
+    </script>
+</body>
+</html>

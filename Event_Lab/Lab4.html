@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Lab 4: Keyboard Event</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>body { background-color: #f4f6f9; font-size: 20px; }</style>
+</head>
+<body>
+<div class="container py-4">
+    <h1 class="text-center mb-4">🖥️ Event Lab 4: Keyboard Event</h1>
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-info">
+                <div class="card-header bg-info text-dark">4. ดักจับปุ่มกด (Keyboard)</div>
+                <div class="card-body">
+                    <label class="form-label fw-bold">พิมพ์หมายเหตุ (จำกัด 50 ตัวอักษร):</label>
+                    <textarea id="note-input" class="form-control" rows="3" placeholder="ลองพิมพ์อะไรบางอย่าง..."></textarea>
+                    
+                    <div class="d-flex justify-content-between mt-2">
+                        <small id="char-count" class="text-muted">จำนวนตัวอักษร: 0/50</small>
+                        <small id="key-info" class="badge bg-secondary">ปุ่มล่าสุด: -</small>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <a href="index.html" class="btn btn-secondary">กลับหน้าหลัก</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const noteInput = document.getElementById("note-input");
+    const charCount = document.getElementById("char-count");
+    const keyInfo = document.getElementById("key-info");
+
+    /* 
+      📝 ส่วนเสริมความเข้าใจ:
+      - "keydown": ทำงานตอนกดปุ่มลงไป
+      - "keyup": ทำงานตอนปล่อยปุ่ม (นิยมใช้เพราะค่าใน input จะอัปเดตเรียบร้อยแล้ว)
+      - "e.key": ใช้เช็คว่ากดปุ่มอะไร (เช่น Enter, Shift, a, b, c)
+    */
+
+    // 🎯 โจทย์เสริม: ลองเช็คดูว่าถ้าผู้ใช้กดปุ่ม "Enter" ให้แสดง Alert ว่า "คุณกดปุ่ม Enter!"
+    
+    noteInput.addEventListener("keyup", function(event) {
+        // 1. นับจำนวนตัวอักษร
+        let length = noteInput.value.length;
+        charCount.innerText = `จำนวนตัวอักษร: ${length}/50`;
+
+        // 2. แสดงชื่อปุ่มที่เพิ่งกด
+        keyInfo.innerText = `ปุ่มล่าสุด: ${event.key}`;
+
+        // 3. เปลี่ยนสีถ้ายาวเกิน 50
+        if (length > 50) {
+            charCount.className = "text-danger fw-bold";
+            noteInput.style.borderColor = "red";
+        } else {
+            charCount.className = "text-muted";
+            noteInput.style.borderColor = "";
+        }
+
+        // 4. ตรวจจับปุ่ม Enter (เฉลยโจทย์เสริม)
+        if (event.key === "Enter") {
+            console.log("มีการกดปุ่ม Enter");
+            // ปรับสี badge ชั่วคราวเพื่อให้รู้ว่าตรวจจับได้
+            keyInfo.className = "badge bg-success";
+            setTimeout(() => keyInfo.className = "badge bg-secondary", 500);
+        }
+    });
+</script>
+</body>
+</html>

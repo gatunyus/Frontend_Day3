@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workshop API: Cascading & BOM Cards</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+      body { background-color: #f8f9fa; font-family: 'Prompt', sans-serif; }
+      .custom-card { margin-top: 50px; margin-bottom: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: none; border-radius: 12px; }
+      .card-header-custom { background-color: #ffffff; border-bottom: 1px solid #eee; padding: 25px; border-radius: 12px 12px 0 0 !important; }
+      .card-title-custom { color: #2c3e50; font-weight: 700; margin: 0; }
+      .form-label-custom { font-weight: 600; color: #5a6268; }
+      .form-control, .form-select { border-radius: 8px; padding: 10px 15px; border: 1px solid #ced4da; }
+      .result { margin-top: 1.5rem; padding: 1rem; border-radius: 8px; font-size: 0.9rem; display: none; text-align: center; border: 1px solid #0d6efd; color: #0d6efd; background-color: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+          
+          <!-- ฟอร์มหลัก -->
+          <div class="card custom-card">
+            <div class="card-header-custom text-center">
+              <h2 class="card-title-custom">Production Setup & BOM</h2>
+              <p class="text-muted mb-0 small">เลือกข้อมูลให้ครบถ้วนเพื่อดูรายการวัตถุดิบ</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+              <form id="apiForm">
+                
+                <div class="mb-4 row align-items-center">
+                  <label for="client_id" class="col-sm-4 col-form-label form-label-custom">Client_id</label>
+                  <div class="col-sm-8">
+                    <input type="number" class="form-control" id="client_id" placeholder="ระบุ Client ID (1-20)" required min="1" max="20">
+                  </div>
+                </div>
+
+                <div class="mb-4 row align-items-center">
+                  <label for="plant_code" class="col-sm-4 col-form-label form-label-custom">plant_code</label>
+                  <div class="col-sm-8 text-end">
+                    <div class="input-group">
+                      <select class="form-select" id="plant_code" required>
+                        <option value="" selected disabled>-- เลือก Plant Code --</option>
+                      </select>
+                      <button class="btn btn-primary px-3" type="button" id="btnSearch">Search</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-4 row align-items-center">
+                  <label for="plant_name" class="col-sm-4 col-form-label form-label-custom">Plant_name</label>
+                  <div class="col-sm-8">
+                    <input type="text" class="form-control bg-light" id="plant_name" placeholder="ชื่อโรงงาน..." readonly>
+                  </div>
+                </div>
+
+                <div class="mb-4 row align-items-center">
+                  <label for="line_id" class="col-sm-4 col-form-label form-label-custom">line_id</label>
+                  <div class="col-sm-8">
+                    <select class="form-select" id="line_id" required disabled>
+                      <option value="" selected disabled>-- เลือก Line ID --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mb-4 row align-items-center">
+                  <label for="sku_id" class="col-sm-4 col-form-label form-label-custom">sku_id</label>
+                  <div class="col-sm-8">
+                    <select class="form-select" id="sku_id" required disabled>
+                      <option value="" selected disabled>-- เลือก SKU ID --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" id="submitBtn" class="btn btn-success btn-lg">Confirm & Send</button>
+                </div>
+
+              </form>
+              <div id="resultBox" class="result"></div>
+            </div>
+            
+            <div class="card-footer text-center py-3 bg-white border-0">
+                <small class="text-muted d-block" id="statusMessage">Ready</small>
+            </div>
+          </div>
+
+          <!-- ส่วนของ Material BOM Cards -->
+          <div id="bomSection" style="display: none;">
+            <h4 class="mb-4 fw-bold text-dark border-start border-4 border-primary ps-3">รายการวัตถุดิบ (BOM)</h4>
+            <div id="materialCardsContainer"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script>
+        const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
+        const WORKSHOP_NAME = "5.2";
+        
+        const FETCH_OPTIONS = {
+            method: 'GET',
+            headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'CustomAgent/1.0'
+            }
+        };
+
+        const plantSelect = document.getElementById('plant_code');
+        const lineSelect = document.getElementById('line_id');
+        const skuSelect = document.getElementById('sku_id');
+        const plantNameInput = document.getElementById('plant_name');
+        const searchBtn = document.getElementById('btnSearch');
+        const statusMsg = document.getElementById('statusMessage');
+        const bomSection = document.getElementById('bomSection');
+        const materialCardsContainer = document.getElementById('materialCardsContainer');
+
+        let currentSKUs = [];
+
+        // 1. โหลดข้อมูล Plant
+        async function loadPlants() {
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_all_plants.php`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success && data.plants) {
+                    plantSelect.innerHTML = '<option value="" selected disabled>-- เลือก Plant Code --</option>';
+                    data.plants.forEach(plant => {
+                        const opt = document.createElement('option');
+                        opt.value = plant.plant_code; opt.innerText = plant.plant_code;
+                        plantSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // 2. โหลดข้อมูล Line
+        async function loadLines(plantCode) {
+            lineSelect.disabled = true;
+            skuSelect.disabled = true;
+            bomSection.style.display = 'none';
+            skuSelect.innerHTML = '<option value="" selected disabled>-- เลือก SKU ID --</option>';
+            lineSelect.innerHTML = '<option value="" selected disabled>Loading lines...</option>';
+            
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_line_id.php?plant_code=${plantCode}`, FETCH_OPTIONS);
+                const data = await res.json();
+                lineSelect.innerHTML = '<option value="" selected disabled>-- เลือก Line ID --</option>';
+                if (data.success && data.lines) {
+                    data.lines.forEach(line => {
+                        const opt = document.createElement('option');
+                        opt.value = line.line_id; opt.innerText = line.line_id;
+                        lineSelect.appendChild(opt);
+                    });
+                    lineSelect.disabled = false;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // 3. โหลดข้อมูล SKU
+        async function loadSKUs() {
+            const plantCode = plantSelect.value;
+            const lineId = lineSelect.value;
+            if (!plantCode || !lineId) return;
+
+            skuSelect.disabled = true;
+            bomSection.style.display = 'none';
+            skuSelect.innerHTML = '<option value="" selected disabled>Loading SKUs...</option>';
+
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_sku.php?plant_code=${plantCode}&line_id=${lineId}`, FETCH_OPTIONS);
+                const data = await res.json();
+
+                skuSelect.innerHTML = '<option value="" selected disabled>-- เลือก SKU (Material) --</option>';
+                if (data.success && data.skus && data.skus.length > 0) {
+                    currentSKUs = data.skus;
+                    data.skus.forEach(sku => {
+                        const opt = document.createElement('option');
+                        opt.value = sku.id;
+                        // 📍 เปลี่ยนจาก sku.id เป็น sku.material
+                        opt.innerText = `${sku.material} - ${sku.material_desc1 || 'No Desc'}`;
+                        skuSelect.appendChild(opt);
+                    });
+                    skuSelect.disabled = false;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // 4. แสดง BOM และแจ้งเตือน Dashboard
+        async function onSKUChange() {
+            const selectedId = skuSelect.value;
+            const skuData = currentSKUs.find(s => s.id == selectedId);
+            if (!skuData) return;
+
+            // 🚀 Notify Dashboard ทันทีที่คลิก (แจ้งว่าเริ่มโหลด)
+            const clientId = document.getElementById('client_id').value || "0";
+            const startLog = new URLSearchParams({
+                client_id: clientId,
+                ws: WORKSHOP_NAME,
+                data: `Requesting BOM for Material: ${skuData.material}`
+            });
+            fetch(`${SERVER_URL}/API/api.php?${startLog.toString()}`, FETCH_OPTIONS);
+
+            // 📍 Fetch รายการ Material จาก Database
+            let materials = [];
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_bom_master.php`, FETCH_OPTIONS);
+                const data = await res.json();
+                if(data.success) materials = data.materials;
+                else throw new Error();
+            } catch (e) {
+                // Fallback ถ้าไม่มี API
+                materials = [
+                    { name: "Syrup", unit: "ลิตร", key: "bom_syrup" },
+                    { name: "CO2", unit: "กก.", key: "bom_co2" },
+                    { name: "Preform", unit: "ขวด", key: "bom_preform" },
+                    { name: "ขวด/กระป๋อง", unit: "ขวด", key: "bom_bt" },
+                    { name: "ฝา", unit: "ฝา", key: "bom_cap" },
+                    { name: "ฉลาก", unit: "ชิ้น", key: "bom_label" },
+                    { name: "กาวฉลาก", unit: "กก.", key: "bom_glue_label" },
+                    { name: "กาวถาด", unit: "กก.", key: "bom_glue_tray" },
+                    { name: "ถาดกระดาษ", unit: "แผ่น", key: "bom_tray" },
+                    { name: "บาร์โค๊ดแพ็ค", unit: "ชิ้น", key: "bom_barcode_pk" },
+                    { name: "บาร์โค๊ดพาเลท", unit: "ชิ้น", key: "bom_barcode_pl" },
+                    { name: "ฟิล์มหุ้มแพ็ค step1", unit: "กก.", key: "bom_film_step1" },
+                    { name: "ฟิล์มหุ้มแพ็ค step2", unit: "กก.", key: "bom_film_step2" },
+                    { name: "แผ่นรอง บน", unit: "แผ่น", key: "bom_sheet_top" },
+                    { name: "แผ่นรอง", unit: "แผ่น", key: "bom_sheet" },
+                    { name: "ฟิล์มยืดพันพาเลท", unit: "กก.", key: "bom_wrap" }
+                ];
+            }
+
+            renderBOM(skuData, materials);
+
+            // 🚀 Notify Dashboard เมื่อโหลดเสร็จ (ใช้ clientId เดิม ไม่ต้องประกาศใหม่)
+            const logParams = new URLSearchParams({
+                client_id: clientId,
+                ws: WORKSHOP_NAME,
+                data: `Loaded BOM for Material ${skuData.material}`
+            });
+            fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS);
+        }
+
+        function renderBOM(skuData, materials) {
+            materialCardsContainer.innerHTML = '';
+            materials.forEach((m) => {
+                const bomValue = skuData[m.key] || 0;
+                const cardHtml = `
+                <div class="card mb-3 border-0 shadow-sm" style="background-color: #acf23cba; border-radius: 12px; overflow: hidden;">
+                  <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold text-dark">${m.name}</h5>
+                    <span class="badge bg-dark opacity-50 small">${m.key}</span>
+                  </div>
+                  <div class="card-body bg-white row g-3 m-0 justify-content-center">
+                    <div class="col-12 col-md-10 col-lg-7">
+                        <label class="small text-muted d-block mb-2 text-center">Require (BOM)</label>
+                        <div class="input-group input-group-lg">
+                            <input type="number" step="0.001" class="form-control text-primary fw-bold text-center fs-3" 
+                                   id="input_${m.key}" value="${bomValue}">
+                            <span class="input-group-text">${m.unit}</span>
+                            <button class="btn btn-warning fw-bold px-4" type="button" 
+                                    onclick="updateBOM('${skuData.id}', '${m.key}', this)">
+                                Update
+                            </button>
+                        </div>
+                    </div>
+                  </div>
+                </div>`;
+
+                materialCardsContainer.insertAdjacentHTML('beforeend', cardHtml);
+            });
+            bomSection.style.display = 'block';
+        }
+
+        async function updateBOM(skuId, fieldName, btn) {
+            const input = document.getElementById(`input_${fieldName}`);
+            const newValue = input.value;
+            const originalText = btn.innerText;
+            btn.disabled = true; btn.innerText = '...';
+
+            try {
+                const params = new URLSearchParams({
+                    id: skuId,
+                    field: fieldName,
+                    value: newValue,
+                    client_id: document.getElementById('client_id').value || "0"
+                });
+                const res = await fetch(`${SERVER_URL}/API/update_bom.php?${params.toString()}`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success) {
+                    btn.classList.replace('btn-warning', 'btn-success');
+                    btn.innerText = 'Saved!';
+                    setTimeout(() => {
+                        btn.classList.replace('btn-success', 'btn-warning');
+                        btn.innerText = originalText; btn.disabled = false;
+                    }, 2000);
+
+                    // --- ย้าย Noti ของคุณมาวางตรงนี้ครับ ---
+                    const clientId = document.getElementById('client_id').value || "0";
+                    const startLog = new URLSearchParams({
+                        client_id: clientId,
+                        ws: WORKSHOP_NAME,
+                        // data: `Update unit for Material: ${skuData.material}`
+                        data: `Update unit for Material: ${fieldName} with value ${newValue}`
+                    });
+                    fetch(`${SERVER_URL}/API/api.php?${startLog.toString()}`, FETCH_OPTIONS);
+                    // ------------------------------------
+
+                } else { alert('Update failed'); btn.disabled = false; btn.innerText = originalText; }
+            } catch (err) { alert('Error'); btn.disabled = false; btn.innerText = originalText; }
+        }
+
+        async function searchPlant() {
+            const val = plantSelect.value;
+            if (!val) return;
+            plantNameInput.value = 'Searching...';
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_plant.php?plant_code=${val}`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success) {
+                    plantNameInput.value = '📍 ' + data.plant_desc_th;
+                    const clientId = document.getElementById('client_id').value || "0";
+                    const logParams = new URLSearchParams({
+                        client_id: clientId,
+                        ws: WORKSHOP_NAME,
+                        data: `Found Plant ${val}`
+                    });
+                    fetch(`${SERVER_URL}/API/api.php?${logParams.toString()}`, FETCH_OPTIONS);
+                } else { 
+                    plantNameInput.value = '❌ Not found'; 
+                }
+            } catch (err) { plantNameInput.value = ''; }
+            loadLines(val);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadPlants);
+        plantSelect.addEventListener('change', searchPlant);
+        lineSelect.addEventListener('change', loadSKUs);
+        skuSelect.addEventListener('change', onSKUChange);
+        searchBtn.addEventListener('click', searchPlant);
+
+        document.getElementById('apiForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const resBox = document.getElementById('resultBox');
+            btn.disabled = true; btn.innerText = 'Sending...';
+            try {
+                const p = new URLSearchParams({
+                    client_id: document.getElementById('client_id').value,
+                    ws: WORKSHOP_NAME,
+                    data: `Setup SKU: ${skuSelect.options[skuSelect.selectedIndex].text}`
+                });
+                const response = await fetch(`${SERVER_URL}/API/api.php?${p.toString()}`, FETCH_OPTIONS);
+                const result = await response.json();
+                resBox.style.display = 'block'; resBox.innerText = result.reply || 'Success!';
+            } catch (err) { resBox.style.display = 'block'; resBox.innerText = 'Connection Error'; }
+            finally { btn.disabled = false; btn.innerText = 'Confirm & Send'; }
+        });
+    </script>
+</body>
+</html>
