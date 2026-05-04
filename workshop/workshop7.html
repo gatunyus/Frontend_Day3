@@ -43,6 +43,9 @@
             padding: 20px 30px;
             border-bottom: 1px solid #eee;
             background-color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .section-header h5 {
@@ -54,6 +57,23 @@
             gap: 10px;
         }
 
+        .section-badge {
+            background: #eef2f7;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+        .section-badge {
+            background: #eef2f7;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+        
         .form-label {
             font-weight: 600;
             color: #5d6d7e;
@@ -120,7 +140,8 @@
         <!-- Section 1: Search & Filter -->
         <div class="card section-card mb-4">
             <div class="section-header">
-                <h5><i data-lucide="filter"></i> Section 1: Search Filters</h5>
+                <h5><i data-lucide="filter"></i> Search Filters</h5>
+                <span class="section-badge">Section 1</span>
             </div>
             <div class="card-body p-4">
                 <div class="row g-3">
@@ -157,9 +178,12 @@
 
         <!-- Section 2: Data Table -->
         <div class="card section-card">
-            <div class="section-header d-flex justify-content-between align-items-center">
-                <h5><i data-lucide="list"></i> Section 2: Production Table</h5>
-                <span class="badge bg-light text-dark border" id="record_count">0 records found</span>
+            <div class="section-header">
+                <h5><i data-lucide="list"></i> Production Table</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge bg-light text-dark border" id="record_count">0 records found</span>
+                    <span class="section-badge">Section 2</span>
+                </div>
             </div>
             <div class="table-container">
                 <div class="table-responsive">
@@ -318,11 +342,11 @@
 
         // 4. ฟังก์ชันจัดการข้อมูล (Edit / Remove)
         function editRecord(id) {
-            window.location.href = `a8.html?id=${id}&action=edit`;
+            window.location.href = `workshop8.html?id=${id}&action=edit`;
         }
 
         function removeRecord(id) {
-            window.location.href = `a8.html?id=${id}&action=remove`;
+            window.location.href = `workshop8.html?id=${id}&action=remove`;
         }
 
         // 5. ฟังก์ชัน Export Excel (แบบง่าย)
