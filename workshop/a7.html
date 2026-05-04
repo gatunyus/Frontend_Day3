@@ -104,7 +104,6 @@
     </style>
 </head>
 <body>
-
     <div class="container main-container">
         
         <!-- Header Area -->
@@ -125,17 +124,27 @@
             </div>
             <div class="card-body p-4">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Client ID</label>
+                        <input type="number" class="form-control" id="client_id" placeholder="ID (1-20)">
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label">Plant ID</label>
-                        <input type="text" class="form-control" id="search_plant" placeholder="ค้นหาโรงงาน...">
+                        <select class="form-select" id="search_plant">
+                            <option value="">-- All Plants --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Line ID</label>
+                        <select class="form-select" id="search_line">
+                            <option value="">-- All Lines --</option>
+                        </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Line ID</label>
-                        <input type="text" class="form-control" id="search_line" placeholder="ค้นหาไลน์การผลิต...">
-                    </div>
-                    <div class="col-md-4">
                         <label class="form-label">Production Date</label>
-                        <input type="date" class="form-control" id="search_date">
+                        <select class="form-select" id="search_date">
+                            <option value="">-- All Dates --</option>
+                        </select>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button class="btn btn-primary w-100 py-2 fw-bold" onclick="loadReports()">
@@ -185,6 +194,7 @@
     <script>
         lucide.createIcons();
 
+        const WORKSHOP_NAME = "7";
         const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
         const FETCH_OPTIONS = {
             method: 'GET',
@@ -193,22 +203,64 @@
 
         let allReports = [];
 
-        // 1. โหลดข้อมูลรายงานจากฐานข้อมูล
-        async function loadReports() {
+        // 0. โหลดตัวเลือกสำหรับ Dropdown (Plant, Line, Date)
+        async function loadFilterOptions() {
             try {
-                // สมมติว่ามี API สำหรับดึงรายงาน
-                const res = await fetch(`${SERVER_URL}/API/get_reports.php`, FETCH_OPTIONS);
+                const res = await fetch(`${SERVER_URL}/API/get_po_filter.php`, FETCH_OPTIONS);
                 const data = await res.json();
                 
                 if (data.success) {
+                    populateSelect('search_plant', data.plants, "-- All Plants --");
+                    populateSelect('search_line', data.lines, "-- All Lines --");
+                    populateSelect('search_date', data.dates, "-- All Dates --");
+                }
+            } catch (err) { console.error("Load filters failed", err); }
+        }
+
+        function populateSelect(id, list, defaultText) {
+            const el = document.getElementById(id);
+            el.innerHTML = `<option value="">${defaultText}</option>`;
+            list.forEach(val => {
+                if(val) {
+                    const opt = document.createElement('option');
+                    opt.value = val; opt.innerText = val;
+                    el.appendChild(opt);
+                }
+            });
+        }
+
+        // 1. โหลดข้อมูลรายงานจากฐานข้อมูล (เรียกเมื่อกด Search เท่านั้น)
+        async function loadReports() {
+            const plantVal = document.getElementById('search_plant').value;
+            const lineVal = document.getElementById('search_line').value;
+            const dateVal = document.getElementById('search_date').value;
+
+            const container = document.getElementById('reportData');
+            container.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2"></div> กำลังค้นหาข้อมูล...</td></tr>';
+
+            try {
+                const params = new URLSearchParams({
+                    plant_id: plantVal,
+                    line_id: lineVal,
+                    date: dateVal
+                });
+
+                const res = await fetch(`${SERVER_URL}/API/get_po_reports.php?${params.toString()}`, FETCH_OPTIONS);
+                const data = await res.json();
+                
+                if (data.success && data.reports) {
                     allReports = data.reports;
-                    filterData(); // กรองข้อมูลตาม Search Box
+                    renderTable(allReports);
+
+                    // 🚀 Notify Dashboard ว่ามีการค้นหาข้อมูล
+                    const clientId = document.getElementById('client_id').value || 0;
+                    fetch(`${SERVER_URL}/API/api.php?client_id=${clientId}&ws=${WORKSHOP_NAME}&data=Search Report : ${plantVal}/${lineVal}/${dateVal}`, FETCH_OPTIONS);
                 } else {
-                    document.getElementById('reportData').innerHTML = '<tr><td colspan="7" class="text-center text-danger">ไม่พบข้อมูลรายงาน</td></tr>';
+                    container.innerHTML = '<tr><td colspan="7" class="text-center text-danger">ไม่พบข้อมูลตามเงื่อนไขที่ระบุ</td></tr>';
                 }
             } catch (err) {
                 console.error(err);
-                document.getElementById('reportData').innerHTML = '<tr><td colspan="7" class="text-center text-danger">เกิดข้อผิดพลาดในการเชื่อมต่อ</td></tr>';
+                container.innerHTML = '<tr><td colspan="7" class="text-center text-danger">เกิดข้อผิดพลาดในการเชื่อมต่อ</td></tr>';
             }
         }
 
@@ -266,20 +318,11 @@
 
         // 4. ฟังก์ชันจัดการข้อมูล (Edit / Remove)
         function editRecord(id) {
-            alert("ฟีเจอร์แก้ไข ID: " + id + " กำลังพัฒนา...");
+            window.location.href = `a8.html?id=${id}&action=edit`;
         }
 
-        async function removeRecord(id) {
-            if (!confirm("คุณต้องการลบรายงาน ID: " + id + " ใช่หรือไม่? (ไม่สามารถย้อนกลับได้)")) return;
-
-            try {
-                const res = await fetch(`${SERVER_URL}/API/remove_report.php?id=${id}`, FETCH_OPTIONS);
-                const data = await res.json();
-                if (data.success) {
-                    alert("ลบข้อมูลสำเร็จ!");
-                    loadReports(); // โหลดข้อมูลใหม่
-                }
-            } catch (err) { alert("เกิดข้อผิดพลาดในการลบข้อมูล"); }
+        function removeRecord(id) {
+            window.location.href = `a8.html?id=${id}&action=remove`;
         }
 
         // 5. ฟังก์ชัน Export Excel (แบบง่าย)
@@ -299,12 +342,14 @@
             link.click();
         }
 
-        // เริ่มโหลดข้อมูล
-        loadReports();
+        // เริ่มโหลดตัวเลือก
+        loadFilterOptions();
 
-        // เพิ่ม Event Listeners สำหรับการค้นหา
-        document.getElementById('search_plant').addEventListener('input', filterData);
-        document.getElementById('search_line').addEventListener('input', filterData);
+        document.getElementById('reportData').innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">กรุณาระบุเงื่อนไขและกด Search เพื่อดูข้อมูล</td></tr>';
+
+        // เพิ่ม Event Listeners สำหรับการค้นหา (เปลี่ยนเป็น change สำหรับ dropdown)
+        document.getElementById('search_plant').addEventListener('change', filterData);
+        document.getElementById('search_line').addEventListener('change', filterData);
         document.getElementById('search_date').addEventListener('change', filterData);
 
     </script>

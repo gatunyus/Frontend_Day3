@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>A8: Edit & Remove Report</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts: Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Prompt', sans-serif;
+            min-height: 100vh;
+            padding: 40px 0;
+        }
+
+        .main-container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .section-card {
+            background: var(--glass-bg);
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section-header h5 {
+            margin: 0;
+            font-weight: 700;
+            color: #34495e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #5d6d7e;
+        }
+
+        .btn-action {
+            padding: 12px 30px;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .btn-update {
+            background: linear-gradient(45deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+        }
+
+        .btn-delete {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+        }
+
+        .btn-back {
+            background: #95a5a6;
+            color: white;
+            border: none;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container main-container">
+        
+        <div class="mb-4 d-flex justify-content-between align-items-center">
+            <h2 class="fw-bold text-dark m-0">Edit / Remove Report</h2>
+            <button class="btn btn-back btn-action shadow-sm" onclick="window.location.href='a7.html'">
+                <i data-lucide="arrow-left" class="me-2 d-inline-block align-middle"></i>Back to Report
+            </button>
+        </div>
+
+        <div id="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <div id="form-content" style="display: none;">
+            <!-- ส่วนแสดงข้อมูลพื้นฐาน -->
+            <div class="card section-card">
+                <div class="section-header">
+                    <h5><i data-lucide="edit-3"></i> Section: Basic Information</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label">PO Number</label>
+                            <input type="text" class="form-control" id="po_no" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Client ID</label>
+                            <input type="number" class="form-control" id="client_id">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Plant ID</label>
+                            <input type="text" class="form-control" id="plant_code">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Line ID</label>
+                            <input type="text" class="form-control" id="line_id">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-control" id="start_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-primary">Bottle Output </label>
+                            <input type="number" class="form-control fw-bold" id="output">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 4: Material Consumption (BOM) -->
+            <div class="card section-card">
+                <div class="section-header">
+                    <h5><i data-lucide="package"></i> Section 4: Material Consumption (BOM)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr class="text-center">
+                                    <th class="text-start ps-4">Material Description</th>
+                                    <th width="150">Bom (Standard)</th>
+                                    <th width="150">Use (Actual)</th>
+                                    <th width="120">Loss</th>
+                                    <th width="120">% Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bom_table_body">
+                                <!-- JS will render items here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ส่วนปุ่มกดและ Notify Client -->
+            <div class="card section-card p-4">
+                <div class="d-flex flex-column align-items-center gap-4">
+                    <div class="d-flex align-items-center gap-3 bg-light p-3 rounded-3 border">
+                        <label class="fw-bold text-dark m-0"><i data-lucide="bell" class="me-1"></i> Notify Client ID:</label>
+                        <input type="number" id="client_id_notify" class="form-control text-center fw-bold" style="width: 120px;" placeholder="0">
+                    </div>
+                    <div class="d-flex gap-3">
+                        <button class="btn btn-update btn-action shadow-lg" onclick="updateReport()">
+                            <i data-lucide="save" class="me-2 d-inline-block align-middle"></i>Update Report
+                        </button>
+                        <button class="btn btn-delete btn-action shadow-lg" onclick="deleteReport()">
+                            <i data-lucide="trash-2" class="me-2 d-inline-block align-middle"></i>Delete Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const SERVER_URL = "https://intermandibular-cohen-nontalkatively.ngrok-free.dev";
+        const WORKSHOP_NAME = "8";
+        const FETCH_OPTIONS = {
+            headers: { 'ngrok-skip-browser-warning': '69420' }
+        };
+
+        const materials = [
+            { key: "bom_syrup", label: "1. Syrup (Litre)" },
+            { key: "bom_co2", label: "2. CO2 (Kg)" },
+            { key: "bom_preform", label: "3. Preform (Pcs)" },
+            { key: "bom_bt", label: "4. BT 1500ml (Pcs)" },
+            { key: "bom_cap", label: "5. Cap (Pcs)" },
+            { key: "bom_label", label: "6. Label (Pcs)" },
+            { key: "bom_glue_label", label: "7. Glue Label (Kg)" },
+            { key: "bom_glue_tray", label: "8. Glue Tray (Kg)" },
+            { key: "bom_tray", label: "9. Tray (Pcs)" },
+            { key: "bom_barcode_pk", label: "10. Barcode PK (Pcs)" },
+            { key: "bom_barcode_pl", label: "11. Barcode PL (Pcs)" },
+            { key: "bom_film_step1", label: "12. Film Step 1 (Kg)" },
+            { key: "bom_film_step2", label: "13. Film Step 2 (Kg)" },
+            { key: "bom_sheet_top", label: "14. Sheet Top (Pcs)" },
+            { key: "bom_sheet", label: "15. Sheet (Pcs)" },
+            { key: "bom_wrap", label: "16. Wrap (Mtr)" }
+        ];
+
+        // ดึง ID จาก URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const reportId = urlParams.get('id');
+
+        if (!reportId) {
+            alert("ไม่พบ ID รายงาน!");
+            window.location.href = 'a7.html';
+        }
+
+        // 1. วาดตาราง BOM
+        function renderBOMTable(reportData) {
+            const tbody = document.getElementById('bom_table_body');
+            tbody.innerHTML = '';
+            
+            materials.forEach(m => {
+                const bomVal = parseFloat(reportData[m.key] || 0);
+                const useVal = parseFloat(reportData[`${m.key}_use`] || 0);
+                const lossVal = useVal - bomVal;
+                const percentLoss = bomVal > 0 ? (lossVal / bomVal) * 100 : 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-4 fw-bold text-secondary">${m.label}</td>
+                    <td><input type="number" class="form-control text-center bg-light" id="${m.key}" value="${bomVal}" readonly></td>
+                    <td><input type="number" class="form-control text-center border-primary" id="${m.key}_use" value="${useVal}" oninput="calculateBOMLoss('${m.key}')"></td>
+                    <td><input type="number" class="form-control text-center bg-light" id="${m.key}_loss" value="${lossVal.toFixed(2)}" readonly></td>
+                    <td><input type="number" class="form-control text-center bg-light" id="${m.key}_percent_loss" value="${percentLoss.toFixed(2)}" readonly></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function calculateBOMLoss(key) {
+            const bomVal = parseFloat(document.getElementById(key).value) || 0;
+            const useVal = parseFloat(document.getElementById(`${key}_use`).value) || 0;
+            const loss = useVal - bomVal;
+            const percent = bomVal > 0 ? (loss / bomVal) * 100 : 0;
+
+            document.getElementById(`${key}_loss`).value = loss.toFixed(2);
+            document.getElementById(`${key}_percent_loss`).value = percent.toFixed(2);
+        }
+
+        // 2. โหลดข้อมูลเดิมมาแสดง
+        async function loadReportDetails() {
+            try {
+                const res = await fetch(`${SERVER_URL}/API/get_report_by_id.php?id=${reportId}`, FETCH_OPTIONS);
+                const data = await res.json();
+
+                if (data.success) {
+                    const r = data.report;
+                    document.getElementById('po_no').value = r.po_no;
+                    document.getElementById('client_id').value = r.client_id;
+                    document.getElementById('plant_code').value = r.plant_code;
+                    document.getElementById('line_id').value = r.line_id;
+                    document.getElementById('start_date').value = r.start_date;
+                    document.getElementById('output').value = r.output_bottles;
+
+                    renderBOMTable(r); // วาดตารางวัตถุดิบจากข้อมูลที่โหลดมา
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('form-content').style.display = 'block';
+                    lucide.createIcons();
+                }
+            } catch (err) { alert("เกิดข้อผิดพลาดในการโหลดข้อมูล"); }
+        }
+
+        // 3. ฟังก์ชันอัปเดตข้อมูล
+        async function updateReport() {
+            const clientId = document.getElementById('client_id').value;
+            const plantCode = document.getElementById('plant_code').value;
+            const lineId = document.getElementById('line_id').value;
+            const startDate = document.getElementById('start_date').value;
+            const output = document.getElementById('output').value;
+
+            // 📦 ดึงข้อมูลวัตถุดิบ (Actual Use) ทั้ง 16 รายการ
+            const params = new URLSearchParams({
+                id: reportId,
+                client_id: clientId,
+                plant_code: plantCode,
+                line_id: lineId,
+                start_date: startDate,
+                output: output
+            });
+
+            materials.forEach(m => {
+                const useVal = document.getElementById(`${m.key}_use`).value || 0;
+                params.append(`${m.key}_use`, useVal);
+            });
+
+            const url = `${SERVER_URL}/API/update_report.php?${params.toString()}`;
+            console.log("Update URL:", url);
+
+            try {
+                const res = await fetch(url, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success) {
+                    // 🚀 ส่งแจ้งเตือนก่อน
+                    const notifyId = document.getElementById('client_id_notify').value || 0;
+                    fetch(`${SERVER_URL}/API/api.php?client_id=${notifyId}&ws=${WORKSHOP_NAME}&data=Updated Report ID: ${reportId}`, FETCH_OPTIONS);
+                    
+                    const count = (data.affected !== undefined) ? data.affected : data.affected_rows;
+                    alert(`อัปเดตสำเร็จ! (เปลี่ยนไป ${count} แถว)`);
+                } else {
+                    const errorMsg = data.error || data.message || "ไม่ทราบสาเหตุ";
+                    const sqlMsg = data.debug_sql ? "\n\nSQL: " + data.debug_sql : "";
+                    alert("อัปเดตไม่สำเร็จ: " + errorMsg + sqlMsg);
+                }
+            } catch (err) { 
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์"); 
+            }
+        }
+
+        // 4. ฟังก์ชันลบข้อมูล
+        async function deleteReport() {
+            if (!confirm("คุณต้องการลบรายงานนี้ใช่หรือไม่? (ไม่สามารถย้อนกลับได้)")) return;
+
+            try {
+                const res = await fetch(`${SERVER_URL}/API/remove_report.php?id=${reportId}`, FETCH_OPTIONS);
+                const data = await res.json();
+                if (data.success) {
+                    // 🚀 ส่งแจ้งเตือนก่อน
+                    const notifyId = document.getElementById('client_id_notify').value || 0;
+                    fetch(`${SERVER_URL}/API/api.php?client_id=${notifyId}&ws=${WORKSHOP_NAME}&data=Deleted Report ID: ${reportId}`, FETCH_OPTIONS);
+
+                    alert("ลบข้อมูลสำเร็จ!");
+                    window.location.href = 'a7.html';
+                }
+            } catch (err) { alert("เกิดข้อผิดพลาดในการลบ"); }
+        }
+
+        loadReportDetails();
+    </script>
+</body>
+</html>
