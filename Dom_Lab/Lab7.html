@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab 7: Read Input Value (Answer)</title>
+    <title>Lab 7: Read Input Value</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-size: 20px; line-height: 1.5; font-family: sans-serif; background-color: #f4f6f9; }
@@ -12,7 +12,7 @@
 </head>
 <body>
 <div class="container py-4">
-    <h1 class="text-center mb-4">🖥️ Lab 7: Read Input Value (Answer)</h1>
+    <h1 class="text-center mb-4">🖥️ Lab 7: Read Input Value</h1>
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
@@ -24,11 +24,11 @@
                     <div class="row mb-3 bg-light p-3 rounded border">
                         <div class="col-md-6">
                             <label class="form-label text-secondary">แพ็ค / 1 พาเลต:</label>
-                            <input type="number" id="pallet-input" class="form-control" value="50" min="1">
+                            <input type="number" id="palletsize-input" class="form-control" value="50" min="1">
                         </div>
                         <div class="col-md-6 mb-2 mb-md-0">
                             <label class="form-label text-secondary">ขวด / 1 แพ็ค:</label>
-                            <input type="number" id="dozen-input" class="form-control" value="12" min="1">
+                            <input type="number" id="packsize-input" class="form-control" value="12" min="1">
                         </div>
                     </div>
 
@@ -37,15 +37,15 @@
                     <!-- ส่วนตั้งค่าความเร็ว -->
                     <label class="form-label mt-2">จำนวนผลิต / หน่วย :</label>
                     <div class="input-group mb-3">
-                        <input type="number" id="speed-input" class="form-control form-control-lg" value="1000">
-                        <select id="speed-unit" class="form-select" style="max-width: 150px;">
+                        <input type="number" id="produce-input" class="form-control form-control-lg" value="1000">
+                        <select id="produce-unit" class="form-select" style="max-width: 150px;">
                             <option value="bottle">ขวด</option>
                             <option value="pack">แพ็ค</option>
                             <option value="pallet">พาเลต</option>
                         </select>
-                        <button class="btn btn-primary btn-lg" onclick="updateSpeed()">คำนวณ</button>
+                        <button class="btn btn-primary btn-lg" onclick="updateQty()">คำนวณ</button>
                     </div>
-                    <div id="current-speed-display" class="alert alert-info fs-4 mb-0">
+                    <div id="current-produce-display" class="alert alert-info fs-4 mb-0">
                         ... กำลังรอการคำนวณ 
                     </div>
                 </div>
@@ -57,21 +57,21 @@
     </div>
 </div>
 <script>
-    const inputField = document.getElementById("speed-input");
-    const inputUnit = document.getElementById("speed-unit");
-    const inputDozen = document.getElementById("dozen-input");
-    const inputPallet = document.getElementById("pallet-input");
-    const displaySpeed = document.getElementById("current-speed-display");
+    const inputField = document.getElementById("produce-input");
+    const inputUnit = document.getElementById("produce-unit");
+    const inputpacksize = document.getElementById("packsize-input");
+    const inputPalletsize = document.getElementById("palletsize-input");
+    const displaySpeed = document.getElementById("current-produce-display");
 
     // ดักจับเหตุการณ์ input และ change เพื่อให้คำนวณทันที
-    inputField.addEventListener("input", updateSpeed);
-    inputUnit.addEventListener("change", updateSpeed);
+    inputField.addEventListener("input", updateQty);
+    inputUnit.addEventListener("change", updateQty);
 
-    function updateSpeed() {
+    function updateQty() {
         let val = inputField.value;
         let unit = inputUnit.value;
-        let bottlesPerDozen = parseInt(inputDozen.value);
-        let dozensPerPallet = parseInt(inputPallet.value);
+        let bottlesPerpacksize = parseInt(inputpacksize.value);
+        let packsizesPerPallet = parseInt(inputPalletsize.value);
 
         // ตรวจสอบค่าเบื้องต้น
         if (val === "" || isNaN(val) || val < 0) {
@@ -80,7 +80,7 @@
             return; 
         }
 
-        if (isNaN(bottlesPerDozen) || bottlesPerDozen <= 0 || isNaN(dozensPerPallet) || dozensPerPallet <= 0) {
+        if (isNaN(bottlesPerpacksize) || bottlesPerpacksize <= 0 || isNaN(packsizesPerPallet) || packsizesPerPallet <= 0) {
             displaySpeed.innerText = "❌ จำนวนขวดหรือพาเลตต้องมากกว่า 0";
             displaySpeed.className = "alert alert-warning fs-4 mb-0";
             return;
@@ -91,23 +91,23 @@
         if (unit === "bottle") {
             totalBottles = parseFloat(val);
         } else if (unit === "pack") {
-            totalBottles = parseFloat(val) * bottlesPerDozen;
+            totalBottles = parseFloat(val) * bottlesPerpacksize;
         } else if (unit === "pallet") {
-            totalBottles = parseFloat(val) * (bottlesPerDozen * dozensPerPallet);
+            totalBottles = parseFloat(val) * (bottlesPerpacksize * packsizesPerPallet);
         }
 
         // คำนวณ พาเลต, โหล, และขวดที่เหลือ
-        let bottlesPerPallet = bottlesPerDozen * dozensPerPallet; 
+        let bottlesPerPallet = bottlesPerpacksize * packsizesPerPallet; 
         let pallets = Math.floor(totalBottles / bottlesPerPallet);
         let remainderAfterPallets = totalBottles % bottlesPerPallet; 
 
-        let dozens = Math.floor(remainderAfterPallets / bottlesPerDozen);
-        let bottles = Math.round(remainderAfterPallets % bottlesPerDozen); 
+        let packsizes = Math.floor(remainderAfterPallets / bottlesPerpacksize);
+        let bottles = Math.round(remainderAfterPallets % bottlesPerpacksize); 
 
         // แสดงผลลัพธ์
         displaySpeed.innerHTML = `
             <div class="fs-5 text-primary">
-                <strong>ผลการคำนวณ :</strong> ${pallets} พาเลต, ${dozens} แพ็ค, ${bottles} ขวด
+                <strong>ผลการคำนวณ :</strong> ${pallets} พาเลต, ${packsizes} แพ็ค, ${bottles} ขวด
                 <br><small class="text-muted">(รวมทั้งหมด ${totalBottles} ขวด)</small>
             </div>
         `;
@@ -115,7 +115,7 @@
     }
 
     // เรียกครั้งแรกเพื่อให้แสดงผลทันที
-    updateSpeed();
+    updateQty();
 </script>
 </body>
 </html>
